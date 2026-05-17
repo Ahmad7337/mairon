@@ -1,0 +1,169 @@
+# mairon — Code Documentation Reference
+Each entry explains what the will file do, what it will import, and how it will connect to the rest of the tool.
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+# ── pyproject.toml ─────────────────────────────────────────────────────────────
+
+The Python package configuration file. Will define the project name, version,
+license, and minimum Python version (3.8+). Lists third-party dependencies:
+`requests` (HTTP calls), `colorama` (terminal colors), and `bcrypt` (password
+hashing). The critical entry here is [project.scripts] which maps the terminal
+command `mairon` to the main() function inside mairon/main.py — this is what
+allows the tool to be run by name without typing `python3 main.py`.
+No APIs or imports, this is a configuration file that will be read by pip at install time.
+
+# ── Makefile ───────────────────────────────────────────────────────────────────
+
+A build automation file executed with `make install`. Contains three sequential
+steps: (1) runs `pip install .` to install the Python package using pyproject.toml,
+(2) compiles mairon/modules/dict_attack.cpp into a binary using g++ with OpenSSL
+flags retrieved via `pkg-config`, and (3) calls download_rockyou() from utils.py
+via a one-line Python call to set up the wordlist. Also defines `make clean`
+(removes build artifacts) and `make uninstall` (removes pip package and binary).
+Requires: g++, libssl-dev, pkg-config to be installed on the system.
+
+# ── mairon/__init__.py ─────────────────────────────────────────────────────────
+
+Package identity file. Required by Python to treat the mairon/ folder as an
+importable package. Defines three module-level constants: __version__ ("0.1.0"),
+__author__, and __license__ ("GPL-3.0-or-later"). These values are not used
+programmatically in v0.1 but serve as the canonical version source and are
+accessible via `import mairon; mairon.__version__` if needed by future scripts.
+No imports, no logic — purely declarative.
+
+# ── mairon/utils.py ────────────────────────────────────────────────────────────
+
+Shared utility module. Defines paths used across the tool: MAIRON_DIR
+(~/.mairon/), WORDLIST_DIR, and WORDLIST_PATH for rockyou.txt storage.
+Contains two functions: get_wordlist_path() which checks three locations in
+order — the local ~/.mairon/ copy, Kali Linux's pre-installed plain-text
+rockyou.txt, and Kali's gzipped version — returning the first valid path found.
+download_rockyou() handles the full download workflow: symlink from Kali if
+available, gzip extraction if the .gz variant exists, or HTTP streaming download
+from a public GitHub mirror with a live progress bar. Imports: os, sys, gzip,
+shutil, requests.
+
+# ── mairon/main.py ─────────────────────────────────────────────────────────────
+
+Entry point and orchestrator for the entire tool. Imports all 6 analysis modules
+plus report_gen, scoring, and utils. Defines the ASCII art banner (printed on
+every run) and all terminal display functions (_print_breach, _print_entropy, etc.)
+which apply color coding via colorama: red for failures, yellow for warnings,
+green for passes. Builds the CLI argument parser via argparse, handling flags:
+-a (all modules), -m (specific modules), -r (report), --offline, --wordlist,
+--update-wordlist, --list. Collects each module's output into a shared `results`
+dict, passes it to calculate_score(), then optionally to generate_txt_report().
+Password input uses getpass() so it never echoes to the terminal.
+
+# ── mairon/modules/__init__.py ─────────────────────────────────────────────────
+
+Empty package marker file. Required by Python so that mairon/modules/ is treated
+as a sub-package, allowing imports like `from mairon.modules.entropy import
+calculate_entropy` to resolve correctly. Contains a single comment line.
+No logic, no imports.
+
+# ── mairon/modules/breach_check.py ────────────────────────────────────────────
+
+Module 1. Implements k-anonymity breach checking against the HaveIBeenPwned
+(HIBP) Pwned Passwords API (https://api.pwnedpasswords.com/range/). Hashes
+the password locally with SHA-1 via hashlib, sends only the first 5 hex
+characters to the API, then checks the returned list of suffix:count pairs
+locally for a match — the full password and full hash never leave the machine.
+Returns a dict: {found: bool, count: int, error: str|None}. Handles connection
+errors, timeouts, and HTTP errors gracefully without crashing the tool.
+Imports: hashlib, requests.
+
+# ── mairon/modules/entropy.py ──────────────────────────────────────────────────
+
+Module 2. Calculates password entropy in bits using the formula H = L × log2(R),
+where L is password length and R is the size of the character set used (detected
+by scanning for lowercase, uppercase, digits, and special characters — adding
+26, 26, 10, and 32 to R respectively). Maps the result to one of five human-
+readable ratings: Very Weak (<28 bits), Weak (<36), Reasonable (<60), Strong
+(<128), Very Strong (128+), based on NIST SP 800-63B guidance. Returns a dict
+with entropy, charset_size, length, rating, description, and four boolean flags
+for character class presence. Imports: math only — no external dependencies.
+
+# ── mairon/modules/pattern_detector.py ────────────────────────────────────────
+
+Module 3. Scans the password for nine categories of predictable patterns using
+regex (re module) and hardcoded lists. Detects: keyboard walks (qwerty, asdf,
+12345), common dictionary words (password, dragon, iloveyou — 23 entries),
+year patterns (1900–2099 via regex), repeated characters (3+ in a row), all-
+digit or all-letter passwords, common suffix padding (word + 123/!/@ etc.),
+predictable structures (Capital + word + digits via regex), and reversed common
+words. Each detected issue is appended to an issues list. Rating is assigned
+as Clean (0 issues), Medium Risk (1–2), or High Risk (3+). Imports: re only.
+
+# ── mairon/modules/dict_attack.cpp ────────────────────────────────────────────
+
+Module 4 — C++ component. Reads a wordlist file line by line, SHA-1 hashes
+each word using OpenSSL's SHA1() function, and compares against the target hash
+passed as argv[1]. Written in C++ rather than Python because sequential file
+I/O combined with per-line hashing is compute-heavy — C++ with OpenSSL runs
+approximately 3–5× faster than Python's hashlib for this workload, giving more
+realistic crack-time simulation. Outputs exactly 3 lines to stdout: "FOUND" or
+"NOT_FOUND", words checked (int), and elapsed time in seconds (float). Compiled
+by the Makefile to ~/.local/bin/mairon_dict_attack using g++ -O2 with OpenSSL.
+Requires: g++, libssl-dev (OpenSSL), pkg-config.
+
+# ── mairon/modules/dict_attack.py ─────────────────────────────────────────────
+
+Module 4 — Python wrapper. Acts as the bridge between main.py and the compiled
+C++ binary. Resolves the binary path (~/.local/bin/mairon_dict_attack) and the
+wordlist path (via get_wordlist_path() from utils.py). SHA-1 hashes the password
+using hashlib to produce the argument for the binary. Calls the binary via
+subprocess.run() with a 180-second timeout. Parses the 3-line stdout output
+from the binary back into a Python dict: {found, words_checked, time_elapsed,
+error}. Handles all failure cases — missing binary, missing wordlist, timeout,
+and unexpected output — without crashing the tool. Imports: os, hashlib,
+subprocess, and get_wordlist_path from mairon.utils.
+
+# ── mairon/modules/mutation_engine.py ─────────────────────────────────────────
+
+Module 5. Generates common human mutations of the password and checks each
+against the HIBP breach database. Mutations produced by generate_mutations():
+leet speak (a→@, e→3, o→0, s→$, t→7, l→1, b→8, g→9), all-caps, capitalized,
+reversed, reversed+leet, 14 common suffixes (123, !, 2024, etc.) applied to
+the original and leet variants. Each mutation is checked against HIBP using the
+same k-anonymity method as breach_check.py via the internal _check_hibp() helper.
+Returns a dict with the full mutations list (each with breached/count), totals,
+and a rating: Low Risk (0 breached), Medium Risk (1–3), High Risk (4+). In
+--offline mode, breach checks are skipped entirely. Imports: hashlib, requests.
+
+# ── mairon/modules/hash_comparison.py ─────────────────────────────────────────
+
+Module 6. Generates the password's hash in four algorithms and returns
+educational metadata about each. MD5 and SHA-1 use Python's stdlib hashlib.
+SHA-256 also uses hashlib. bcrypt uses the third-party `bcrypt` library with
+cost factor 12 (current industry recommendation) and a freshly generated salt —
+meaning each run produces a different bcrypt hash, which is intentional and
+correct behavior. If bcrypt is not installed, a placeholder message is returned
+instead of crashing. Each algorithm entry includes its approximate GPU cracking
+speed (based on public Hashcat RTX 3090 benchmarks), a crackable flag, status
+label, rating string, and recommended use case. Imports: hashlib, bcrypt.
+
+# ── mairon/modules/report_gen.py ──────────────────────────────────────────────
+
+Module 7. Writes a formatted plain-text audit report to ./reports/ in the
+directory where mairon was invoked. Filename includes a timestamp (e.g.
+mairon_report_20240501_143022.txt) to prevent overwrites. The _redact() helper
+masks the password as first_char + asterisks + last_char before any write —
+the raw password never appears in the file. Builds the report section by section
+from the shared results dict: breach status, entropy stats, pattern issues table,
+dict attack results, mutations table (capped at 20 rows), hash comparison block,
+and a per-module score breakdown. Imports: os, datetime. No external dependencies.
+
+# ── mairon/modules/scoring.py ──────────────────────────────────────────────────
+
+Module 8. Aggregates results from all other modules into a single 0–100 integer
+score using locked weights: Breach Check 25pts, Entropy 20pts, Pattern Detection
+20pts, Dictionary Attack 15pts, Mutation Engine 10pts, Hash Comparison 10pts.
+Deduction logic per module: breach found → full 25pt deduction; entropy uses a
+rating-to-deduction map (Very Weak→20, Weak→15, Reasonable→8, Strong→3); patterns
+deduct 5pts per issue (capped at 20); dict attack found → full 15pt deduction;
+mutations deduct proportionally based on breached/total ratio; hash comparison
+is informational and always returns full points. Modules that errored or were
+# skipped contribute zero deduction. Final score maps to: LOW RISK (80+), MEDIUM
+# RISK (55+), HIGH RISK (30+), CRITICAL RISK (<30). Imports: nothing — pure logic.
