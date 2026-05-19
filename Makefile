@@ -10,7 +10,7 @@ all: install
 install:
 	@echo ""
 	@echo "  [1/3] Installing Python package..."
-	pip install . --break-system-packages
+	pipx install .
 	@echo ""
 	@echo "  [2/3] Compiling dictionary attack module (C++)..."
 	$(MAKE) build-cpp
@@ -33,7 +33,7 @@ build-cpp:
 
 
 uninstall:
-	pip uninstall mairon -y --break-system-packages 2>/dev/null || true
+	pipx uninstall mairon
 	rm -f $(BINARY)
 	@echo "  ✓ Mairon uninstalled."
 
