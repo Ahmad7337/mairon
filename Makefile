@@ -1,6 +1,6 @@
 #C++ 
 BINARY       = $(HOME)/.local/bin/mairon_dict_attack
-CPP_SRC      = mairon-cli/modules/dict_attack.cpp
+CPP_SRC      = mairon/modules/dict_attack.cpp
 
 .PHONY: all install build-cpp clean uninstall
 
@@ -16,7 +16,7 @@ install:
 	$(MAKE) build-cpp
 	@echo ""
 	@echo "  [3/3] Setting up wordlist..."
-	python3 -c "from mairon-cli.utils import download_rockyou; download_rockyou()"
+	python3 -c "from mairon.utils import download_rockyou; download_rockyou()"
 	@echo ""
 	@echo "  ✓ Mairon installed. Run 'mairon --help' to get started."
 	@echo ""
@@ -33,7 +33,7 @@ build-cpp:
 
 
 uninstall:
-	pipx uninstall mairon
+	cd .. || pipx uninstall mairon
 	rm -f $(BINARY)
 	@echo "  ✓ Mairon uninstalled."
 
