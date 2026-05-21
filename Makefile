@@ -1,6 +1,6 @@
 #C++ 
 BINARY       = $(HOME)/.local/bin/mairon_dict_attack
-CPP_SRC      = mairon/modules/dict_attack.cpp
+CPP_SRC      = mairon-cli/modules/dict_attack.cpp
 
 .PHONY: all install build-cpp clean uninstall
 
