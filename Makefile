@@ -16,7 +16,7 @@ install:
 	$(MAKE) build-cpp
 	@echo ""
 	@echo "  [3/3] Setting up wordlist..."
-	python3 -c "from mairon.utils import download_rockyou; download_rockyou()"
+	python3 -c "from mairon-cli.utils import download_rockyou; download_rockyou()"
 	@echo ""
 	@echo "  ✓ Mairon installed. Run 'mairon --help' to get started."
 	@echo ""
