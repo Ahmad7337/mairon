@@ -11,6 +11,8 @@ install:
 	@echo ""
 	@echo "  [1/3] Installing Python package..."
 	pipx install .
+	pipx ensurepath
+	@echo "  Please run 'source ./bashrc' to configure the PATH variable"
 	@echo ""
 	@echo "  [2/3] Compiling dictionary attack module (C++)..."
 	$(MAKE) build-cpp
