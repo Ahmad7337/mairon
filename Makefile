@@ -35,7 +35,7 @@ build-cpp:
 
 
 uninstall:
-	cd ~ || pipx uninstall mairon
+	cd ~ && pipx uninstall mairon
 	rm -f $(BINARY)
 	@echo "  ✓ Mairon uninstalled."
 
