@@ -4,15 +4,15 @@ import argparse
 from getpass import getpass
 from colorama import init, Fore, Style
 
-from mairon.modules.breach_check    import check_breach
-from mairon.modules.entropy         import calculate_entropy
-from mairon.modules.pattern_detector import detect_patterns
-from mairon.modules.dict_attack     import run_dict_attack
-from mairon.modules.mutation_engine import analyze_mutations
-from mairon.modules.hash_comparison import compare_hashes
-from mairon.modules.report_gen      import generate_txt_report
-from mairon.modules.scoring         import calculate_score
-from mairon.utils                   import download_rockyou
+from mairon_cli.modules.breach_check    import check_breach
+from mairon_cli.modules.entropy         import calculate_entropy
+from mairon_cli.modules.pattern_detector import detect_patterns
+from mairon_cli.modules.dict_attack     import run_dict_attack
+from mairon_cli.modules.mutation_engine import analyze_mutations
+from mairon_cli.modules.hash_comparison import compare_hashes
+from mairon_cli.modules.report_gen      import generate_txt_report
+from mairon_cli.modules.scoring         import calculate_score
+from mairon_cli.utils                   import download_rockyou
 
 BANNER = f"""
 {Fore.RED}  ███╗   ███╗ █████╗ ██╗██████╗  ██████╗ ███╗   ██╗

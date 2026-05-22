@@ -2,7 +2,7 @@ import os
 import hashlib
 import subprocess
 
-from mairon.utils import get_wordlist_path
+from mairon_cli.utils import get_wordlist_path
 
 DICT_ATTACK_BIN = os.path.expanduser("~/.local/bin/mairon_dict_attack")
 ATTACK_TIMEOUT = 180

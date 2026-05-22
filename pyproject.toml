@@ -16,7 +16,7 @@ dependencies = [
 ]
 
 [project.scripts]
-mairon = "mairon.main:main"
+mairon = "mairon_cli.main:main"
 
 [tool.setuptools.packages.find]
 where = ["."]
