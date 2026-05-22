@@ -11,28 +11,28 @@ license, and minimum Python version (3.8+). Lists third-party dependencies:
 hashing). The critical entry here is [project.scripts] which maps the terminal
 command `mairon` to the main() function inside mairon/main.py — this is what
 allows the tool to be run by name without typing `python3 main.py`.
-No APIs or imports, this is a configuration file that will be read by pip at install time.
+No APIs or imports, this is a configuration file that will be read by pipx at install time.
 
 # ── Makefile ───────────────────────────────────────────────────────────────────
 
 A build automation file executed with `make install`. Contains three sequential
-steps: (1) runs `pip install .` to install the Python package using pyproject.toml,
-(2) compiles mairon/modules/dict_attack.cpp into a binary using g++ with OpenSSL
+steps: (1) runs `pipx install .` to install the Python package using pyproject.toml,
+(2) compiles mairon_cli/modules/dict_attack.cpp into a binary using g++ with OpenSSL
 flags retrieved via `pkg-config`, and (3) calls download_rockyou() from utils.py
 via a one-line Python call to set up the wordlist. Also defines `make clean`
-(removes build artifacts) and `make uninstall` (removes pip package and binary).
+(removes build artifacts) and `make uninstall` (removes pipx package and binary).
 Requires: g++, libssl-dev, pkg-config to be installed on the system.
 
-# ── mairon/__init__.py ─────────────────────────────────────────────────────────
+# ── mairon_cli/__init__.py ─────────────────────────────────────────────────────────
 
-Package identity file. Required by Python to treat the mairon/ folder as an
+Package identity file. Required by Python to treat the mairon_cli/ folder as an
 importable package. Defines three module-level constants: __version__ ("0.1.0"),
 __author__, and __license__ ("GPL-3.0-or-later"). These values are not used
 programmatically in v0.1 but serve as the canonical version source and are
 accessible via `import mairon; mairon.__version__` if needed by future scripts.
 No imports, no logic — purely declarative.
 
-# ── mairon/utils.py ────────────────────────────────────────────────────────────
+# ── mairon_cli/utils.py ────────────────────────────────────────────────────────────
 
 Shared utility module. Defines paths used across the tool: MAIRON_DIR
 (~/.mairon/), WORDLIST_DIR, and WORDLIST_PATH for rockyou.txt storage.
@@ -44,7 +44,7 @@ available, gzip extraction if the .gz variant exists, or HTTP streaming download
 from a public GitHub mirror with a live progress bar. Imports: os, sys, gzip,
 shutil, requests.
 
-# ── mairon/main.py ─────────────────────────────────────────────────────────────
+# ── mairon_cli/main.py ─────────────────────────────────────────────────────────────
 
 Entry point and orchestrator for the entire tool. Imports all 6 analysis modules
 plus report_gen, scoring, and utils. Defines the ASCII art banner (printed on
@@ -56,14 +56,14 @@ green for passes. Builds the CLI argument parser via argparse, handling flags:
 dict, passes it to calculate_score(), then optionally to generate_txt_report().
 Password input uses getpass() so it never echoes to the terminal.
 
-# ── mairon/modules/__init__.py ─────────────────────────────────────────────────
+# ── mairon_cli/modules/__init__.py ─────────────────────────────────────────────────
 
-Empty package marker file. Required by Python so that mairon/modules/ is treated
-as a sub-package, allowing imports like `from mairon.modules.entropy import
+Empty package marker file. Required by Python so that mairon_cli/modules/ is treated
+as a sub-package, allowing imports like `from mairon_cli.modules.entropy import
 calculate_entropy` to resolve correctly. Contains a single comment line.
 No logic, no imports.
 
-# ── mairon/modules/breach_check.py ────────────────────────────────────────────
+# ── mairon_cli/modules/breach_check.py ────────────────────────────────────────────
 
 Module 1. Implements k-anonymity breach checking against the HaveIBeenPwned
 (HIBP) Pwned Passwords API (https://api.pwnedpasswords.com/range/). Hashes
@@ -74,7 +74,7 @@ Returns a dict: {found: bool, count: int, error: str|None}. Handles connection
 errors, timeouts, and HTTP errors gracefully without crashing the tool.
 Imports: hashlib, requests.
 
-# ── mairon/modules/entropy.py ──────────────────────────────────────────────────
+# ── mairon_cli/modules/entropy.py ──────────────────────────────────────────────────
 
 Module 2. Calculates password entropy in bits using the formula H = L × log2(R),
 where L is password length and R is the size of the character set used (detected
@@ -85,7 +85,7 @@ readable ratings: Very Weak (<28 bits), Weak (<36), Reasonable (<60), Strong
 with entropy, charset_size, length, rating, description, and four boolean flags
 for character class presence. Imports: math only — no external dependencies.
 
-# ── mairon/modules/pattern_detector.py ────────────────────────────────────────
+# ── mairon_cli/modules/pattern_detector.py ────────────────────────────────────────
 
 Module 3. Scans the password for nine categories of predictable patterns using
 regex (re module) and hardcoded lists. Detects: keyboard walks (qwerty, asdf,
@@ -96,7 +96,7 @@ predictable structures (Capital + word + digits via regex), and reversed common
 words. Each detected issue is appended to an issues list. Rating is assigned
 as Clean (0 issues), Medium Risk (1–2), or High Risk (3+). Imports: re only.
 
-# ── mairon/modules/dict_attack.cpp ────────────────────────────────────────────
+# ── mairon_cli/modules/dict_attack.cpp ────────────────────────────────────────────
 
 Module 4 — C++ component. Reads a wordlist file line by line, SHA-1 hashes
 each word using OpenSSL's SHA1() function, and compares against the target hash
@@ -108,7 +108,7 @@ realistic crack-time simulation. Outputs exactly 3 lines to stdout: "FOUND" or
 by the Makefile to ~/.local/bin/mairon_dict_attack using g++ -O2 with OpenSSL.
 Requires: g++, libssl-dev (OpenSSL), pkg-config.
 
-# ── mairon/modules/dict_attack.py ─────────────────────────────────────────────
+# ── mairon_cli/modules/dict_attack.py ─────────────────────────────────────────────
 
 Module 4 — Python wrapper. Acts as the bridge between main.py and the compiled
 C++ binary. Resolves the binary path (~/.local/bin/mairon_dict_attack) and the
@@ -118,9 +118,9 @@ subprocess.run() with a 180-second timeout. Parses the 3-line stdout output
 from the binary back into a Python dict: {found, words_checked, time_elapsed,
 error}. Handles all failure cases — missing binary, missing wordlist, timeout,
 and unexpected output — without crashing the tool. Imports: os, hashlib,
-subprocess, and get_wordlist_path from mairon.utils.
+subprocess, and get_wordlist_path from mairon_cli.utils.
 
-# ── mairon/modules/mutation_engine.py ─────────────────────────────────────────
+# ── mairon_cli/modules/mutation_engine.py ─────────────────────────────────────────
 
 Module 5. Generates common human mutations of the password and checks each
 against the HIBP breach database. Mutations produced by generate_mutations():
@@ -132,7 +132,7 @@ Returns a dict with the full mutations list (each with breached/count), totals,
 and a rating: Low Risk (0 breached), Medium Risk (1–3), High Risk (4+). In
 --offline mode, breach checks are skipped entirely. Imports: hashlib, requests.
 
-# ── mairon/modules/hash_comparison.py ─────────────────────────────────────────
+# ── mairon_cli/modules/hash_comparison.py ─────────────────────────────────────────
 
 Module 6. Generates the password's hash in four algorithms and returns
 educational metadata about each. MD5 and SHA-1 use Python's stdlib hashlib.
@@ -144,7 +144,7 @@ instead of crashing. Each algorithm entry includes its approximate GPU cracking
 speed (based on public Hashcat RTX 3090 benchmarks), a crackable flag, status
 label, rating string, and recommended use case. Imports: hashlib, bcrypt.
 
-# ── mairon/modules/report_gen.py ──────────────────────────────────────────────
+# ── mairon_cli/modules/report_gen.py ──────────────────────────────────────────────
 
 Module 7. Writes a formatted plain-text audit report to ./reports/ in the
 directory where mairon was invoked. Filename includes a timestamp (e.g.
@@ -155,7 +155,7 @@ from the shared results dict: breach status, entropy stats, pattern issues table
 dict attack results, mutations table (capped at 20 rows), hash comparison block,
 and a per-module score breakdown. Imports: os, datetime. No external dependencies.
 
-# ── mairon/modules/scoring.py ──────────────────────────────────────────────────
+# ── mairon_cli/modules/scoring.py ──────────────────────────────────────────────────
 
 Module 8. Aggregates results from all other modules into a single 0–100 integer
 score using locked weights: Breach Check 25pts, Entropy 20pts, Pattern Detection
