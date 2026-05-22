@@ -33,10 +33,18 @@ Everything outputs to the terminal. Add `-r` and it writes a report file instead
 
 > **Requirements:** Python 3.8+, GCC (for C++ module), Linux
 
+> **Packages:** `git` `python3` `python3-pipx` `make` `g++` `libssl-dev` `pkg-config`
+  
 ```bash
 git clone https://github.com/Ahmad7337/mairon
 cd mairon
 make install
+source ~/.bashrc
+```
+Before installing, ensure all required packages are present. Run the following command :
+
+```bash
+apt update && apt install -y git python3 python3-pipx make g++ libssl-dev pkg-config
 ```
 
 On first install, Mairon will automatically download `rockyou.txt` (the standard 14M-entry password wordlist) to its local data directory. You can update it anytime with:
